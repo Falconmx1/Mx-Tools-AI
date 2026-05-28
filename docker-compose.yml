@@ -1,78 +1,32 @@
-version: '3.8'
+# Core
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-dotenv==1.0.0
 
-services:
-  # API Principal de FastAPI
-  mx-api:
-    build: .
-    container_name: mx-tools-api
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-    depends_on:
-      - redis
-      - gradio
-    environment:
-      - REDIS_URL=redis://redis:6379
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    networks:
-      - mx-network
-    restart: unless-stopped
+# ML & Transformers
+transformers==4.36.0
+torch==2.1.0
+sentence-transformers==2.2.2
+datasets==2.15.0
 
-  # Redis para Cache
-  redis:
-    image: redis:7.2-alpine
-    container_name: mx-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    command: redis-server --appendonly yes
-    networks:
-      - mx-network
-    restart: unless-stopped
+# Cache & Queue
+redis==5.0.1
+celery==5.3.1
 
-  # Dashboard Gradio
-  gradio:
-    build:
-      context: .
-      dockerfile: Dockerfile.gradio
-    container_name: mx-gradio
-    ports:
-      - "7860:7860"
-    volumes:
-      - ./web:/app/web
-    depends_on:
-      - mx-api
-    environment:
-      - API_URL=http://mx-api:8000
-    command: python web/dashboard.py
-    networks:
-      - mx-network
-    restart: unless-stopped
+# Dashboard
+gradio==4.8.0
 
-  # (Opcional) Worker para tareas pesadas de ML
-  ml-worker:
-    build: .
-    container_name: mx-ml-worker
-    command: celery -A core.ml_worker worker --loglevel=info
-    depends_on:
-      - redis
-    environment:
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - ./models:/app/models
-    networks:
-      - mx-network
-    restart: unless-stopped
+# Analysis
+scikit-learn==1.3.0
+numpy==1.24.3
+pandas==2.1.0
+nltk==3.8.1
+beautifulsoup4==4.12.2
+requests==2.31.0
+aiofiles==23.2.1
+python-multipart==0.0.6
 
-volumes:
-  redis-data:
-  models-cache:
-
-networks:
-  mx-network:
-    driver: bridge
+# Security Tools
+bandit==1.7.5
+safety==2.3.5
