@@ -1,19 +1,78 @@
 version: '3.8'
 
 services:
-  mx-tools-ai:
+  # API Principal de FastAPI
+  mx-api:
     build: .
+    container_name: mx-tools-api
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
       - ./data:/app/data
+      - ./models:/app/models
     depends_on:
       - redis
+      - gradio
+    environment:
+      - REDIS_URL=redis://redis:6379
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - mx-network
+    restart: unless-stopped
 
+  # Redis para Cache
   redis:
-    image: redis:alpine
+    image: redis:7.2-alpine
+    container_name: mx-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - mx-network
+    restart: unless-stopped
+
+  # Dashboard Gradio
+  gradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
+    container_name: mx-gradio
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./web:/app/web
+    depends_on:
+      - mx-api
+    environment:
+      - API_URL=http://mx-api:8000
+    command: python web/dashboard.py
+    networks:
+      - mx-network
+    restart: unless-stopped
+
+  # (Opcional) Worker para tareas pesadas de ML
+  ml-worker:
+    build: .
+    container_name: mx-ml-worker
+    command: celery -A core.ml_worker worker --loglevel=info
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./models:/app/models
+    networks:
+      - mx-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  models-cache:
+
+networks:
+  mx-network:
+    driver: bridge
